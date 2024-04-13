@@ -12,16 +12,17 @@ int main(){
     if (vid.isOpened()){
             vid.read(liveImg);
             auto start = high_resolution_clock::now();
-            gray = slidingWindowThreshold(liveImg, {3, 3}, 100);
+            gray = slidingWindowThresholdOptimized(liveImg, {2, 2}, 100, 2);
             auto stop = high_resolution_clock::now();
             auto duration = duration_cast<nanoseconds>(stop - start);
-            std::cout << "FPS: " << 1000000000.0 / (double) duration.count() << "\n";
+            std::cout << 1000000000.0 / duration.count() << "\n";
 
             cv::imshow("2", gray);
-            cv::imshow("3", liveImg);
+            // cv::imshow("3", liveImg);
             cv::waitKey(1);
         }
     }
     return 0;
 
-}
+}   
+

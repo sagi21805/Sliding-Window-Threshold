@@ -48,12 +48,12 @@ window<T> slidingWindow(T* arr, pair shape, pair windowSize, uint32_t stride = 1
     return window<T>(outArr, movementRows, movementCols, numOfOutElements);
 }
 
-Mat slidingWindowThreshold(Mat img, pair windowSize, uint8_t threshold){
+Mat slidingWindowThreshold(Mat img, pair windowSize, uint32_t threshold){
     Mat gray;
     cv::cvtColor(img, gray, cv::COLOR_BGR2GRAY);
     uchar* imgArr = gray.ptr();
     window window = slidingWindow(imgArr, pair(img.rows, img.cols), windowSize);
-
+    uint32_t thresh = threshold*windowSize.first*windowSize.second;
     Mat out = Mat::zeros(cv::Size(window.cols, window.rows), CV_8UC1);
     uint32_t numOfWindowElements = windowSize.first*windowSize.second;
     uint32_t sum = 0;
@@ -63,7 +63,7 @@ Mat slidingWindowThreshold(Mat img, pair windowSize, uint8_t threshold){
             for (uint32_t element = 0; element < numOfWindowElements; element++){
                 sum += *(window.data+element+col*numOfWindowElements+row*window.cols*numOfWindowElements);
             }
-            if (sum > threshold*windowSize.first*windowSize.second){
+            if (sum > thresh){
                 out.at<uchar>(row, col) = 255;
             }
             sum = 0;
@@ -72,4 +72,38 @@ Mat slidingWindowThreshold(Mat img, pair windowSize, uint8_t threshold){
     delete window.data;
     return out;
     //remember to free the ptr at the end
+}
+
+constexpr bool checkStride(pair size, uint32_t stride){
+    return (size.first >= stride || size.second >= stride);
+}
+
+Mat slidingWindowThresholdOptimized(Mat img, pair windowSize, uint8_t threshold, uint32_t stride){
+    
+    Mat out;
+    if (checkStride(windowSize, stride)) {
+        const uint32_t movementRows = ((img.rows - windowSize.first)  / stride) + 1;
+        const uint32_t movementCols = ((img.cols - windowSize.second) / stride) + 1;
+        const uint32_t thresh = threshold*windowSize.first*windowSize.second;
+        out = Mat::zeros(cv::Size(movementCols, movementRows), CV_8UC1);
+        cv::cvtColor(img, img, cv::COLOR_BGR2GRAY);
+        uchar* arr = img.ptr();
+        uint32_t sum = 0;
+        int32_t offset = stride-windowSize.second;
+        for (uint32_t imgRow = 0; imgRow < movementRows; imgRow++){
+            offset += windowSize.second-stride;
+            for (uint32_t imgCol = 0; imgCol < movementCols; imgCol++){
+                for (uint32_t windowRow = 0; windowRow < windowSize.first; windowRow++){
+                    for (uint32_t windowCol = 0; windowCol < windowSize.second; windowCol++){
+                        sum += *(arr + windowCol + windowRow*img.cols + imgCol*stride + imgRow*movementCols*stride + offset);
+                    }
+                }
+                if (sum > thresh){
+                    out.at<uchar>(imgRow, imgCol) = 255;
+                }
+                sum = 0;
+            }
+        }
+    }
+    return out;
 }
